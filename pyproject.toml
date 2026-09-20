@@ -7,7 +7,7 @@ name = "bottle-nameko"
 version = "0.1.0"
 description = "Nameko RPC integration for Bottle applications"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["bottle>=0.13,<0.14"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
