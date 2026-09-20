@@ -1,0 +1,39 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: dev
+      RABBITMQ_DEFAULT_PASS: dev
+  greeting:
+    build:
+      context: ./examples
+    depends_on:
+      - rabbitmq
+
+  gateway:
+    build:
+      context: ./examples
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:ro
+    environment:
+      PYTHONPATH: /workspace
+    ports:
+      - "127.0.0.1:8080:8080"
+    command: [ "python", "examples/gateway.py" ]
+    depends_on:
+      - rabbitmq
+      - greeting
+  tests:
+    build:
+      context: ./examples
+      dockerfile: Dockerfile.test
+    volumes:
+      - .:/workspace:ro
+    environment:
+      PYTHONPATH: /workspace
+    profiles:
+      - test
