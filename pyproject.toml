@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bottle-nameko"
-version = "0.1.0"
+version = "0.1.1"
 readme = "README.md"
 description = "Nameko RPC integration for Bottle applications"
 license = "MIT"
