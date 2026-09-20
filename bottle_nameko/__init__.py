@@ -3,7 +3,7 @@ bottle nameko.
 
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = 'Mohammad Najarzadeh'
 __email__ = 'm.najarzadeh1993@gmail.com'
 __credits__ = ''
