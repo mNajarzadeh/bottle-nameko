@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 dependencies = ["bottle>=0.13,<0.14"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "WebTest"]
 
 [tool.setuptools.packages.find]
 include = ["bottle_nameko*"]

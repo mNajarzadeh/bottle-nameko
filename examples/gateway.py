@@ -1,10 +1,10 @@
 import eventlet
 
 eventlet.monkey_patch()
-from bottle import Bottle
+
 from nameko.standalone.rpc import ClusterRpcProxy
 
-from bottle_nameko.plugin import NamekoPlugin
+from examples.gateway_app import create_app
 
 
 def main():
@@ -13,12 +13,7 @@ def main():
     }
 
     with ClusterRpcProxy(config, timeout=5) as rpc:
-        app = Bottle()
-        app.install(NamekoPlugin(client=rpc))
-
-        @app.get("/hello/<name>")
-        def hello(name, rpc):
-            return {"message": rpc.greeting.hello(name)}
+        app = create_app(client=rpc)
 
         try:
             app.run(host="0.0.0.0", port=8080)
