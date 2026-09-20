@@ -1,42 +1,127 @@
 # bottle-nameko
 
-A Bottle plugin that injects a supplied RPC client into route handlers.
+Build a Bottle HTTP gateway for Nameko RPC services with a small Python file.
 
-The repository includes a working HTTP-to-Nameko RPC example,
-timeout handling, and automated tests.
+Requires Python 3.10, a running RabbitMQ broker, and a Nameko service.
 
-## Current scope
+## Installation
 
-The plugin injects the client into handlers that explicitly declare
-an `rpc` parameter. Other handlers are left unchanged.
+Requires Python 3.10.
 
-The application owns the client's lifecycle. Connection pooling
-and concurrent RPC usage are not implemented or verified.
+```bash
+python -m pip install bottle-nameko
+```
 
-The example gateway converts Nameko RPC timeouts into HTTP 504 responses.
-This error handling belongs to the example, not the plugin itself.
+Nameko and the other runtime dependencies are installed automatically.
 
-## Requirements
+See the [PyPI package page](https://pypi.org/project/bottle-nameko/).
+
+## Quick start
+
+Create `app.py`:
+
+```python
+from bottle_nameko import Gateway
+
+app = Gateway(
+    amqp_uri="amqp://dev:dev@localhost:5672/",
+    timeout=5,
+)
+
+
+@app.get("/hello/<name>")
+def hello(name, rpc):
+    return {"message": rpc.greeting.hello(name)}
+```
+
+Run from the directory containing `app.py`:
+
+```bash
+bottle-nameko app:app
+```
+
+Send a request:
+
+```bash
+curl -i http://127.0.0.1:8080/hello/Ali
+```
+
+Expected status: HTTP 200.
+
+```json
+{"message": "Hello, Ali"}
+```
+
+This example expects a Nameko service named `greeting` with an RPC
+method named `hello`. Replace the broker URL and service call with
+those of your own environment.
+
+The command initializes Eventlet before loading your application.
+The gateway manages the RPC client lifecycle and injects the client
+into handlers that explicitly declare an `rpc` parameter.
+
+An RPC reply timeout returns HTTP 504:
+
+```json
+{
+  "error": "upstream_timeout",
+  "message": "The upstream service did not respond in time."
+}
+```
+
+A timeout does not cancel the remote task.
+
+## Command-line options
+
+```bash
+bottle-nameko app:app --host 127.0.0.1 --port 8080
+```
+
+- `app:app`: Python module name followed by the Gateway object name.
+- `--host`: Listening address; defaults to `127.0.0.1`.
+- `--port`: Listening port; defaults to `8080`.
+
+## Current limitations
+
+- Python 3.10 is the currently supported runtime.
+- The Gateway API currently exposes GET routes.
+- Concurrent RPC usage has not been verified.
+- Connection pooling is not implemented.
+- Broker connection failures are not covered by the RPC reply timeout.
+- The bundled server is intended for local development.
+
+## Run the Docker example
+
+The repository includes a greeting service, RabbitMQ, and a gateway.
+
+### Requirements
 
 - Git
 - Docker Engine with Docker Compose v2
 - Available local ports: 5672, 15672, and 8080
 
-The container example uses Python 3.10, Nameko 2.14.1,
-Eventlet 0.40.3, and Bottle 0.13.4.
+Docker is needed for this example, not for installing the Python package.
 
-## Run the example
+The example uses Python 3.10, Nameko 2.14.1, Eventlet 0.40.3,
+and Bottle 0.13.4.
 
-Clone the repository and enter its directory:
+### Setup
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/mNajarzadeh/bottle-nameko.git
 cd bottle-nameko
 ```
 
+Until the Gateway changes are merged into `main`, switch to:
+
+```bash
+git switch feat/simple-gateway
+```
+
 Run the following commands from the repository root.
-If Docker requires elevated permissions on your system,
-prefix Docker commands with `sudo`.
+If Docker requires elevated permissions, prefix Docker commands with `sudo`.
 
 Start RabbitMQ:
 
@@ -60,8 +145,8 @@ docker compose up -d --build greeting
 docker compose logs -f greeting
 ```
 
-Wait for `starting services: greeting`, then press Ctrl+C
-to stop following logs. The service keeps running.
+Wait for `starting services: greeting`, then press Ctrl+C to stop
+following logs. The service keeps running.
 
 Start the gateway:
 
@@ -87,13 +172,33 @@ Request flow:
 HTTP client → Bottle gateway → RabbitMQ → Nameko greeting service
 ```
 
-## Plugin usage
+### Local credentials
 
-With an initialized RPC client:
+The example RabbitMQ username and password are both `dev`.
+
+The management interface is available at:
+
+http://127.0.0.1:15672
+
+Published ports are bound to localhost.
+These credentials are for the local example only.
+
+### Stop the example
+
+```bash
+docker compose down
+```
+
+RabbitMQ data is not configured with a persistent volume.
+
+## Direct plugin usage
+
+For an existing Bottle application, supply an initialized RPC client:
 
 ```python
 from bottle import Bottle
 from bottle_nameko.plugin import NamekoPlugin
+
 
 def create_app(client):
     app = Bottle()
@@ -106,11 +211,12 @@ def create_app(client):
     return app
 ```
 
-See `examples/gateway.py` for client startup, shutdown,
-and Eventlet initialization.
+The plugin leaves handlers without an explicit `rpc` parameter unchanged.
 
-Nameko is installed in the example containers.
-Installing the plugin alone does not install Nameko.
+When using `NamekoPlugin` directly, your application is responsible
+for the client's lifecycle, execution environment, and error handling.
+Automatic HTTP 504 handling is provided by the Gateway runner,
+not by the injection plugin itself.
 
 ## Tests
 
@@ -126,10 +232,10 @@ For subsequent runs without dependency changes:
 docker compose run --rm tests
 ```
 
-The tests cover client injection, preservation of route arguments,
-Bottle integration, successful gateway responses, and HTTP 504 handling.
+Tests cover client injection, route arguments, Bottle integration,
+gateway responses, RPC timeout handling, and cleanup when the server fails.
 
-Gateway tests use a mock client and do not require RabbitMQ.
+Gateway tests use mock clients and do not require RabbitMQ.
 Live RPC communication has been checked manually, not by this test suite.
 
 GitHub Actions runs the suite on pushes and pull requests.
@@ -142,12 +248,21 @@ Inspect service logs:
 docker compose logs --tail=80 gateway greeting rabbitmq
 ```
 
-The example initializes Eventlet before importing Bottle and Nameko.
-Preserve this ordering in `examples/gateway.py`.
+Use the `bottle-nameko` command to run an installed application.
+It initializes Eventlet before importing Bottle, Nameko, and your
+application module.
 
-The gateway waits up to five seconds for an RPC reply.
-A reply timeout returns HTTP 504, but does not cancel the remote task.
-Broker connection failures are not covered by that timeout guarantee.
+The Docker example uses the equivalent module entry point:
+
+```bash
+python -m bottle_nameko.cli examples.simple_gateway:app --host 0.0.0.0
+```
+
+If requests hang, check the startup logs and confirm that both RabbitMQ
+and the greeting service are ready.
+
+The example waits up to five seconds for an RPC reply.
+This is not an overall deadline for broker connection and reconnection.
 
 After changing the greeting service, rebuild its image:
 
@@ -164,18 +279,8 @@ docker compose restart gateway
 The gateway mounts the repository read-only, so these code changes
 do not require an image rebuild.
 
-## Local development credentials
-
-The example RabbitMQ username and password are both `dev`.
-Its management interface is available at http://127.0.0.1:15672.
-
-Published ports are bound to localhost.
-These credentials are for the local example only.
-
-## Stop the example
+After changing Compose configuration, apply it with:
 
 ```bash
-docker compose down
+docker compose up -d gateway
 ```
-
-RabbitMQ data is not configured with a persistent volume.

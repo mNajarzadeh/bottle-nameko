@@ -1,6 +1,7 @@
 import argparse
 from importlib import import_module
-
+import sys
+from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser(
@@ -22,6 +23,7 @@ def main():
 
     from .gateway import Gateway
 
+    sys.path.insert(0, str(Path.cwd()))
     module = import_module(module_name)
     application = getattr(module, object_name)
 
