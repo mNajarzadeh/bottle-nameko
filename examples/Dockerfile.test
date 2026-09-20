@@ -1,0 +1,15 @@
+FROM python:3.10-slim
+
+WORKDIR /workspace
+
+RUN pip install --no-cache-dir \
+    "setuptools<81" \
+    "nameko==2.14.1" \
+    "eventlet==0.40.3" \
+    "bottle==0.13.4" \
+    "pytest==9.1.1" \
+    "WebTest==3.0.7"
+
+ENV PYTHONDONTWRITEBYTECODE=1
+
+CMD ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider"]

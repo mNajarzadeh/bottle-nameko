@@ -27,3 +27,13 @@ services:
     depends_on:
       - rabbitmq
       - greeting
+  tests:
+    build:
+      context: ./examples
+      dockerfile: Dockerfile.test
+    volumes:
+      - .:/workspace:ro
+    environment:
+      PYTHONPATH: /workspace
+    profiles:
+      - test
