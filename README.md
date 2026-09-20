@@ -284,3 +284,7 @@ After changing Compose configuration, apply it with:
 ```bash
 docker compose up -d gateway
 ```
+
+## License
+
+Licensed under the [MIT License](LICENSE).
