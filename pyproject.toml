@@ -14,3 +14,6 @@ dev = ["pytest", "WebTest"]
 
 [tool.setuptools.packages.find]
 include = ["bottle_nameko*"]
+
+[project.scripts]
+bottle-nameko = "bottle_nameko.cli:main"
